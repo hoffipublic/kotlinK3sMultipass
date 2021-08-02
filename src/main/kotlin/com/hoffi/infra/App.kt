@@ -11,6 +11,7 @@ import com.hoffi.infra.local.k3s.BootstrapK3s
 import com.hoffi.infra.local.multipass.BootstrapInfra
 import com.hoffi.infra.local.scratch.Scratch
 import com.hoffi.infra.local.scratch.Scratch2
+import com.hoffi.yaml.YAML.callYttFiles
 import koodies.exec.output
 import koodies.exec.successful
 import koodies.shell.ShellScript
@@ -108,42 +109,33 @@ fun init(targetEnv: TargetEnvs) {
     strippedYttFromOrigContents = strippedYttFromOrigContents.replace(Regex("^(.+?): #@.*$", RegexOption.MULTILINE), "$1: \"ytt templating removed\"")
     yttConfDataValues.appendText(strippedYttFromOrigContents)
 
-    val yttCmd = "ytt -f ${yttConfDataValues} -f ${yttConfTemplate}"
-    val yttCmdOut = "${GENDIRCONF}/conf.yml"
-    // val shellResult = CommandLine("ytt", "-f", "${yttConfDataValues}", "-f", "${yttConfTemplate}").exec.logging()
-    val shellResult = ShellScript(name = "generating './${yttCmdOut}' with '${yttCmd}'") {
-        yttCmd
-    }.exec.logging()
-    if ( shellResult.successful ) {
-        val yttCmdOutFile = File(yttCmdOut)
-//        yttCmdOutFile.writeText("""
-//            #! from conf/${targetEnv.name}/conf.yml
-//            #@overlay/match-child-defaults missing_ok=True
-//            #@data/values
-//            ---
+    val yttOut = callYttFiles(name = "${GENDIRCONF}/conf.yml", listOf(yttConfDataValues, yttConfTemplate), includeConf = false)
+    val yttOutFilename = "${GENDIRCONF}/conf.yml"
+    val yttOutFile = File(yttOutFilename)
+//    yttOutFile.writeText("""
+//        #! from conf/${targetEnv.name}/conf.yml
+//        #@overlay/match-child-defaults missing_ok=True
+//        #@data/values
+//        ---
 //
-//            """.trimIndent())
-//        yttCmdOutFile.appendText(shellResult.io.toString() + "\n")
-        yttCmdOutFile.writeText(shellResult.io.toString() + "\n")
-    } else {
-        throw Exception("failed to generate ${GENDIRCONF}/conf.yml}")
-    }
+//        """.trimIndent())
+//    yttOutFile.appendText(yttOut)
+    yttOutFile.writeText(yttOut)
 
     // the "real" CONF: YamlConf that is used throughout this project
-    CONF = Yaml.decodeFromString(YamlConf.serializer(), File(yttCmdOut).readText())
+    CONF = Yaml.decodeFromString(YamlConf.serializer(), yttOutFile.readText())
     CONF.targetEnv = targetEnv.name
     CONF.TargetENV = targetEnv.name.capitalize()
     CONF.DIR.GENDIR = GENDIR
     // as yaml deserialize above cannot deal with ---
-    val yttCmdOutFile = File(yttCmdOut)
-    yttCmdOutFile.writeText("""
+    yttOutFile.writeText("""
             #! from conf/${targetEnv.name}/conf.yml
             #@overlay/match-child-defaults missing_ok=True
             #@data/values
             ---
             
             """.trimIndent())
-    yttCmdOutFile.appendText(shellResult.io.toString() + "\n")
+    yttOutFile.appendText(yttOut)
 
     // for dirs that are in CONF we make sure they exist
     val TMPDIR = File("tmp", targetEnv.name)       ; TMPDIR.mkdirs()        ; CONF.DIR.TMPDIR = TMPDIR
