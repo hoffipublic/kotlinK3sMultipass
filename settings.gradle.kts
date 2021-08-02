@@ -1,3 +1,3 @@
 
-rootProject.name = "bootstrapK3sMultipass"
+rootProject.name = "kotlinK3sMultipass"
 

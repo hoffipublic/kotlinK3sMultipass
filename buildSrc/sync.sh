@@ -5,8 +5,8 @@ trap finish EXIT
 SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 LOCALDISPLAYDIR="${SCRIPTDIR#${SCRIPTDIR%/*/*}/}" # <projectRoot>/buildSrc
 
-SYNCDIR_base="$SCRIPTDIR/../../../Deps/buildSrc"
-SYNCDIR_display="../../Deps/buildSrc"
+SYNCDIR_base="$SCRIPTDIR/../../../../Deps/buildSrc"
+SYNCDIR_display="../../../Deps/buildSrc"
 OFFSET="src/main/kotlin"
 SYNCDIR="$SYNCDIR_base/$OFFSET"
 for syncfilepath in $SYNCDIR/* ; do

@@ -230,10 +230,22 @@ object Deps {
             val datetime = Dep.from("org.jetbrains.kotlinx:kotlinx-datetime:$VERSION")
                 .also { APPLIED_DEPS[DATETIME.javaClass.simpleName] = it }
         }
+        object KOTLINXJSON {
+            val VERSION = "1.2.2"
+            val yamlVersion = "0.10.0"
+            val kotlinxJson = Dep.from("org.jetbrains.kotlinx:kotlinx-serialization-json:$VERSION")
+                .also { APPLIED_DEPS[KOTLINXJSON.javaClass.simpleName] = it }
+            val kotlinxYaml = Dep.from("net.mamoe.yamlkt:yamlkt:${yamlVersion}")
+        }
         object CLIKT {
             val VERSION = "3.1.0"
             val clikt = Dep.from("com.github.ajalt.clikt:clikt:$VERSION")
                 .also { APPLIED_DEPS[CLIKT.javaClass.simpleName] = it }
+        }
+        object SNAKEYAML {
+            val VERSION = "1.29"
+            val snakeyaml = Dep.from("org.yaml:snakeyaml:$VERSION")
+                .also { APPLIED_DEPS[SNAKEYAML.javaClass.simpleName] = it }
         }
     }
 

@@ -1,0 +1,22 @@
+#! use '#!' for comments and not only '#' (see https://carvel.dev/ytt/)
+#! App will template this file with itself using it twice, 1. as #@data/values file and 2. as ytt template #@ load("@ytt:data", "data")
+USING_DNSMASQ_ON_HOST: true
+DEPLOY_LOCALPATHSTORAGE: true
+DEPLOY_LONGHORN: true
+NAMESPACE_LONGHORN: longhorn-system
+DEPLOY_MONITORING: true
+NAMESPACE_MONITORING: monitoring
+DEPLOY_VAULT: true
+NAMESPACE_VAULT: vault
+HOST_KUBECONFIG_FILE: #@ "{}/.kube/config".format(data.values.HOME) #! if left empty will export KUBECONFIG=REPODIR/tmp/targetEnv/k3s.yml
+MULTIPASSBASEOS: lts #! xenial #! lts
+K3SNODECOUNT: 2
+K3SNODENAMEPREFIX: "k3snode"
+K3SNODES:
+  - name: k3snode01
+  - name: k3snode02
+MYCLUSTER_DOMAIN: iac.poi #! WARNING: .local is reserved for Multicast DNS
+#! CERT_FILENAME: /etc/letsencrypt/live/${MYCLUSTER_DOMAIN}/fullchain.pem
+#! CERT_KEY_FILENAME: /etc/letsencrypt/live/${MYCLUSTER_DOMAIN}/privkey.pem
+CERT_FILENAME: #@ "{}/.ssh/{}/fullchain.pem".format(data.values.HOME, data.values.MYCLUSTER_DOMAIN)
+CERT_KEY_FILENAME: #@ "{}/.ssh/{}/privkey.pem".format(data.values.HOME, data.values.MYCLUSTER_DOMAIN)
