@@ -1,5 +1,6 @@
 #! use '#!' for comments and not only '#' (see https://carvel.dev/ytt/)
 #! App will template this file with itself using it twice, 1. as #@data/values file and 2. as ytt template #@ load("@ytt:data", "data")
+IP_DNSSERVER: #@ data.values.IP_HOST
 USING_DNSMASQ_ON_HOST: true
 DEPLOY_LOCALPATHSTORAGE: true
 DEPLOY_LONGHORN: true

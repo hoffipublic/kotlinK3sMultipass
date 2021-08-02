@@ -38,7 +38,10 @@ dependencies {
     implementation("com.bkahlert.koodies:koodies:1.9.4")
 }
 
-kotlin {
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+    kotlinOptions{
+        jvmTarget = JavaVersion.VERSION_11.toString()
+    }
 }
 
 application {

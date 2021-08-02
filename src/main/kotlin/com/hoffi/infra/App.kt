@@ -11,8 +11,10 @@ import com.hoffi.infra.local.k3s.BootstrapK3s
 import com.hoffi.infra.local.multipass.BootstrapInfra
 import com.hoffi.infra.local.scratch.Scratch
 import com.hoffi.infra.local.scratch.Scratch2
+import koodies.exec.output
 import koodies.exec.successful
 import koodies.shell.ShellScript
+import koodies.text.ANSI.ansiRemoved
 import koodies.text.capitalize
 import net.mamoe.yamlkt.Yaml
 import java.io.File
@@ -67,6 +69,9 @@ class App: CliktCommand(allowMultipleSubcommands = true, help = """
 }
 
 fun init(targetEnv: TargetEnvs) {
+    echo("targetEnv: " + targetEnv.name)
+    val (hostIp, hostNic) = hostIpAndNic()
+
     val GENDIR = File("generated", targetEnv.name) ; GENDIR.mkdirs()
     val GENDIRCONF = File(GENDIR, "conf")           ; GENDIRCONF.mkdirs()
     val GENDIRCONFytt = File(GENDIRCONF, "ytt")     ; GENDIRCONFytt.mkdirs()
@@ -84,6 +89,8 @@ fun init(targetEnv: TargetEnvs) {
         HOME: ${System.getenv("HOME")}
         targetEnv: ${targetEnv.name}
         TargetENV: ${targetEnv.name.capitalize()}
+        IP_HOST: ${hostIp}
+        NIC_HOST: ${hostNic}
         
     """.trimIndent())
     yttConfTemplate.appendText(strippedYttFromOrigContents)
@@ -94,6 +101,8 @@ fun init(targetEnv: TargetEnvs) {
         HOME: ${System.getenv("HOME")}
         targetEnv: ${targetEnv.name}
         TargetENV: ${targetEnv.name.capitalize()}
+        IP_HOST: ${hostIp}
+        NIC_HOST: ${hostNic}
         
     """.trimIndent())
     strippedYttFromOrigContents = strippedYttFromOrigContents.replace(Regex("^(.+?): #@.*$", RegexOption.MULTILINE), "$1: \"ytt templating removed\"")
@@ -106,7 +115,16 @@ fun init(targetEnv: TargetEnvs) {
         yttCmd
     }.exec.logging()
     if ( shellResult.successful ) {
-        File(yttCmdOut).writeText(shellResult.io.toString() + "\n")
+        val yttCmdOutFile = File(yttCmdOut)
+//        yttCmdOutFile.writeText("""
+//            #! from conf/${targetEnv.name}/conf.yml
+//            #@overlay/match-child-defaults missing_ok=True
+//            #@data/values
+//            ---
+//
+//            """.trimIndent())
+//        yttCmdOutFile.appendText(shellResult.io.toString() + "\n")
+        yttCmdOutFile.writeText(shellResult.io.toString() + "\n")
     } else {
         throw Exception("failed to generate ${GENDIRCONF}/conf.yml}")
     }
@@ -116,6 +134,49 @@ fun init(targetEnv: TargetEnvs) {
     CONF.targetEnv = targetEnv.name
     CONF.TargetENV = targetEnv.name.capitalize()
     CONF.DIR.GENDIR = GENDIR
+    // as yaml deserialize above cannot deal with ---
+    val yttCmdOutFile = File(yttCmdOut)
+    yttCmdOutFile.writeText("""
+            #! from conf/${targetEnv.name}/conf.yml
+            #@overlay/match-child-defaults missing_ok=True
+            #@data/values
+            ---
+            
+            """.trimIndent())
+    yttCmdOutFile.appendText(shellResult.io.toString() + "\n")
+
     // for dirs that are in CONF we make sure they exist
     val TMPDIR = File("tmp", targetEnv.name)       ; TMPDIR.mkdirs()        ; CONF.DIR.TMPDIR = TMPDIR
+}
+
+fun hostIpAndNic(): List<String> {
+    val shellResult = ShellScript(name = "getting host's IP and NIC") { """
+        set -Eeuo pipefail
+        case $(uname) in
+            'Linux')
+            HOSTNIC=$(route | grep '^default' | grep -o '[^ ]*$')
+            HOSTIP=$(ifconfig "${'$'}HOSTNIC}" | sed -n -E 's/^.*inet ([0-9.]+).*$/\1/p')
+            ;;
+            'FreeBSD')
+            HOSTNIC=$(route | grep '^default' | grep -o '[^ ]*$')
+            HOSTIP=$(ifconfig "${'$'}{HOSTNIC}" | sed -n -E 's/^.*inet ([0-9.]+).*$/\1/p')
+            ;;
+            'WindowsNT')
+            HOSTNIC=unknown
+            HOSTIP=unknown
+            ;;
+            'Darwin')
+            HOSTNIC=$(route get example.com | sed -n -E 's/^ *interface: (.*)$/\1/p')
+            HOSTIP=$(ifconfig "${'$'}{HOSTNIC}" | sed -n -E 's/^.*inet ([0-9.]+).*$/\1/p')
+            ;;
+            *) ;;
+        esac
+        printf "%s,%s" ${'$'}HOSTIP ${'$'}HOSTNIC
+        """.trimIndent()
+    }.exec.invoke()
+    if ( shellResult.successful ) {
+        return shellResult.output.ansiRemoved.split(',')
+    } else {
+        throw Exception("failed to get hostIpAndNic()")
+    }
 }

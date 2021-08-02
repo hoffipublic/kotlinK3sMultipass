@@ -16,6 +16,9 @@ import java.io.File
 class YamlConf {
     var targetEnv: String = "default"
     var TargetENV: String = "Default"
+    var IP_HOST: String = "unknown"
+    var NIC_HOST: String = "unknown"
+    var IP_DNSSERVER: String = "unknown"
     var DIR: DIRS = DIRS()
 
     val USING_DNSMASQ_ON_HOST: Boolean = true
