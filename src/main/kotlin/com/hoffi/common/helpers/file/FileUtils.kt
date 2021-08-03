@@ -23,6 +23,41 @@ object FileUtils {
         return dirpaths
     }
 
+    fun replaceInline(origFilepath: Path, keepOriginal: Boolean = true, needsSudo: Boolean = false, replaceWith: (String) -> String) {
+        val listOfSudoCmds = mutableListOf<String>()
+        if (keepOriginal) {
+            if (needsSudo) {
+                listOfSudoCmds.add("cp -f \"${origFilepath.toAbsolutePath()}\" \"${origFilepath.toAbsolutePath()}.orig\"")
+            } else {
+                origFilepath.toFile().copyTo(File("${origFilepath}.orig"), overwrite = true)
+            }
+        }
+        val tmpTmpDir = FileUtils.mkdir("${CONF.DIR.TMPDIR}/tmp")
+        val intermediateFile = Path.of("${tmpTmpDir}", "${origFilepath.fileName}.intermediate")
+        intermediateFile.toFile().printWriter().use { writer ->
+            origFilepath.toFile().forEachLine { line ->
+                writer.print(replaceWith(line) + "\n")
+            }
+        }
+        if (needsSudo) {
+            listOfSudoCmds.add("cat ${intermediateFile.toAbsolutePath()} > ${origFilepath.toAbsolutePath()}")
+        } else {
+            intermediateFile.copyTo(origFilepath, overwrite = true)
+        }
+        if (needsSudo) {
+            echo("")
+            echo("sudo rights needed, please execute the following command(s) manually...")
+            echo("")
+            echo("sudo bash -c '")
+            listOfSudoCmds.forEach { echo("  ${it}") }
+            echo("'")
+            echo("")
+            echo("if done that (in another shell!), press Enter key")
+            //System.`in`.readAllBytes() // throw away already typed stuff
+            readLine()
+        }
+    }
+
     fun getBetween(origFilepath: Path, startSentinel: String, endSentinel: String): MutableList<String> {
         val lines = mutableListOf<String>()
         var betweenSentinels = false
