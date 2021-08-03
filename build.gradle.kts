@@ -47,16 +47,21 @@ tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach 
 application {
     mainClass.set(theMainClass)
 }
+tasks.named<JavaExec>("run") {
+    // needed if App wants to read from stdin
+    standardInput = System.`in`
+}
 
 tasks {
-    val shadowCreate by creating(com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar::class) {
+    shadowJar {
         manifest { attributes["Main-Class"] = theMainClass }
         archiveClassifier.set("fat")
         mergeServiceFiles()
+        minimize()
     }
-    // val build by existing {
-    //     dependsOn(shadowCreate)
-    // }
+//    val build by existing {
+//        finalizedBy(shadowCreate)
+//    }
 }
 
 // Helper tasks to speed up things and don't waste time

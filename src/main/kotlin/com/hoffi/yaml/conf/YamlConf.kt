@@ -38,12 +38,16 @@ class YamlConf {
     val CERT_FILENAME: String = ""
     val CERT_KEY_FILENAME: String = ""
 
+    @kotlinx.serialization.Transient
+    val tmpMap = mutableMapOf<String, Any>()
+
     @Serializable
     class DIRS {
         // these are created in AppKt.init()
         var HOME: File = File(System.getenv("HOME"))
         var TMPDIR: File = File("tmp/default")
         var GENDIR: File = File("generated/default")
+        var CONFDIR: File = File("conf")
     }
     @Serializable
     data class K3SNODE(

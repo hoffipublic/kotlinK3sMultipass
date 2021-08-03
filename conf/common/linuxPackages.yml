@@ -1,0 +1,16 @@
+packages:
+  - name: net-tools
+    versionCmd: "ifconfig --version"
+  - name: fzf
+    versionCmd: "fzf --version"
+  - name: silversearcher-ag
+    versionCmd: "ag --version"
+  - name: fd-find
+    versionCmd: "fdfind --version"
+  - name: git
+    versionCmd: "git --version"
+  - name: jq
+    versionCmd: "jq --version"
+snapPackages:
+  - name: yq
+    versionCmd: "yq --version"

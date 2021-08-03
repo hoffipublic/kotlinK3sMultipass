@@ -139,6 +139,8 @@ fun init(targetEnv: TargetEnvs) {
 
     // for dirs that are in CONF we make sure they exist
     val TMPDIR = File("tmp", targetEnv.name)       ; TMPDIR.mkdirs()        ; CONF.DIR.TMPDIR = TMPDIR
+
+    echo(Yaml { encodeDefaultValues = true }.encodeToString(YamlConf.serializer(), CONF))
 }
 
 fun hostIpAndNic(): List<String> {

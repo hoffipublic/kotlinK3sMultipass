@@ -1,0 +1,12 @@
+#@ load("@ytt:data", "data")
+
+---
+bootcmd:
+  - #@ "printf \"[Resolve]{}DNS={}{}\" > /etc/systemd/resolved.conf".format('\\n', data.values.IP_DNSSERVER, '\\n')
+  - [systemctl, restart, systemd-resolved]
+runcmd:
+  - sudo iptables -P INPUT ACCEPT
+  - sudo iptables -P FORWARD ACCEPT
+  - sudo iptables -P OUTPUT ACCEPT
+  - if fzf --version >/dev/null 2>&1 ; then echo "source /usr/share/doc/fzf/examples/key-bindings.bash" >> /home/ubuntu/.bashrc ; fi
+  - sudo rm -f /etc/update-motd.d/10-* /etc/update-motd.d/50-*
