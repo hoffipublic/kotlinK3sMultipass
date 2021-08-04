@@ -112,7 +112,7 @@ class BootstrapK3s: CliktCommand(printHelpOnEmptyArgs = true, help = """
 
         // TODO kubewaitPodRunning -n "kube-system" -l app.kubernetes.io/name=traefik 'traefik-.*' 5 5 20 1 # initial:5 between:5 times:20 after:1
 
-        for (i in 1..5) {
+        for (i in 1..8) {
             try {
                 val ingressIP = Shell.callShell("get k3s traefik ingress IP", """
                     kubectl get service -l app.kubernetes.io/instance=traefik -n kube-system -o json | jq -r '[.items[0].status.loadBalancer.ingress[].ip] | @sh'

@@ -1,0 +1,22 @@
+[macosx]
+macbookpro ansible_host=MacBook-Pro ansible_connection=local  ansible_user=hoffi
+
+[control]
+k3snode01  ansible_connection=ssh ansible_user=ubuntu
+
+[workers]
+k3snode02  ansible_connection=ssh ansible_user=ubuntu
+
+[cube:children]
+control
+workers
+
+[cube:vars]
+somevar=somevarvalue
+
+[all:vars]
+# use with:
+# ansible cube -i ansible/inventories/local/hosts -m lineinfile --become --args='path=/etc/hosts search_string="{{BEGAUTLINE}}" line="{{BEGAUTLINE}}" '
+# ansible cube -i ansible/inventories/local/hosts -m lineinfile --become --args='path=/etc/hosts search_string="{{ENDAUTLINE}}" line="{{ENDAUTLINE}}" '
+BEGAUTLINE="#BEGIN MARKER used for automation, DO NOT CHANGE this comment line"
+ENDAUTLINE="#ENDIN MARKER used for automation, DO NOT CHANGE this comment line"

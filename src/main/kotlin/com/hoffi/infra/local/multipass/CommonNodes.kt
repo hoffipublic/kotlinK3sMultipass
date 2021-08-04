@@ -1,12 +1,13 @@
 package com.hoffi.infra.local.multipass
 
 import com.github.ajalt.clikt.output.TermUi.echo
+import com.hoffi.common.helpers.file.FileUtils.END_SENTINEL
+import com.hoffi.common.helpers.file.FileUtils.START_SENTINEL
 import com.hoffi.common.log.LoggerDelegate
 import com.hoffi.infra.CONF
 import com.hoffi.shell.Shell
 import com.hoffi.yaml.YAML
 import java.io.File
-import java.time.LocalDateTime
 
 data class vmState(
     val name: String,
@@ -78,15 +79,18 @@ object CommonNodes {
             val checkSnapPackages = linuxPackages["snapPackages"]?.map { it.versionCmd } ?: mutableListOf()
             checkAptPackages.addAll(checkSnapPackages)
             val checkPackages = checkAptPackages.joinToString("\n")
+            val sudoNoPassword = "\"s/^(%sudo[[:space:]]+).*\$/\\1ALL=(ALL:ALL) NOPASSWD: ALL/\""
             val remoteCmd = """
                     multipass exec ${vmState.name} -- bash +e -x -c '
+                        sudo sed -E -i ${sudoNoPassword} /etc/sudoers
                         sudo apt update
                         sudo apt install -y ${aptPackages}
                         sudo snap install ${snapPackages}
                         if fzf --version >/dev/null 2>&1 ; then echo "source /usr/share/doc/fzf/examples/key-bindings.bash" >> /home/ubuntu/.bashrc ; fi
                         sudo chown ubuntu:ubuntu /etc/hosts
-                        echo -e "\n#kotlinK3sMultipass ${LocalDateTime.now()}" >> /etc/hosts
+                        echo -e "\n${START_SENTINEL}" >> /etc/hosts
                         ${etcHosts}
+                        echo -e "${END_SENTINEL}" >> /etc/hosts
                         echo -e "${File("${CONF.DIR.HOME}/.ssh/id_rsa.pub").readText()}" >> /home/ubuntu/.ssh/authorized_keys
                         # TODO add self-signed cert to /usr/ TargetEnvs.local /share/ca-certificates/ or /etc/ssl/certs/
                         #
