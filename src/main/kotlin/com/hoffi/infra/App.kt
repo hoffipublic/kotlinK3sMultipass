@@ -8,6 +8,7 @@ import com.hoffi.conf.yaml.YamlConf
 import com.hoffi.infra.hetzner.Hetzner
 import com.hoffi.infra.local.Local
 import com.hoffi.infra.local.k3s.BootstrapK3s
+import com.hoffi.infra.local.k3s.ConfigureK3s
 import com.hoffi.infra.local.multipass.BootstrapInfra
 import com.hoffi.infra.local.scratch.Scratch
 import com.hoffi.infra.local.scratch.Scratch2
@@ -27,6 +28,7 @@ val subCommands = listOf(
     Hetzner(),
     BootstrapInfra(),
     BootstrapK3s(),
+    ConfigureK3s(),
     Scratch(),
     Scratch2(),
 )
@@ -47,6 +49,7 @@ fun main(args: Array<String>) {
             "local",
             "bootstrap-infra",
             "bootstrap-k3s",
+            "configure-k3s",
             "--"
         ))
     }

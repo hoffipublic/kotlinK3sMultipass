@@ -26,23 +26,33 @@ class BootstrapInfra: CliktCommand(printHelpOnEmptyArgs = true, help = """
         }
 
         if (vmStates.any { it.formerState == "fresh" }) {
-            // alter own HOST's /etc/hosts
-            val file = Path.of("/etc/hosts")
-            val linesBetween = FileUtils.getBetween(file, FileUtils.START_SENTINEL, FileUtils.END_SENTINEL)
-            linesBetween.removeIf { line -> line.contains(Regex(vmStates.map { it.name }.joinToString("|"))) }
+            // alter own HOST's /etc/hosts and usr/local/etc/dnsmasq.conf
+            val etchosts = Path.of("/etc/hosts")
+            val dnsmasq = Path.of("/usr/local/etc/dnsmasq.conf")
+            val linesBetweenEtcHosts = FileUtils.getBetween(etchosts, FileUtils.START_SENTINEL, FileUtils.END_SENTINEL)
+            val linesBetweenDnsmasq = FileUtils.getBetween(dnsmasq, FileUtils.START_SENTINEL, FileUtils.END_SENTINEL)
+            linesBetweenEtcHosts.removeIf { line -> line.contains(Regex(vmStates.map { it.name }.joinToString("|"))) }
+            linesBetweenDnsmasq.removeIf { line -> line.contains(Regex(vmStates.map { it.name }.joinToString("|"))) }
             vmStates.forEach {
-                linesBetween.add("${it.IP} ${it.name}")
+                linesBetweenEtcHosts.add("${it.IP} ${it.name}")
+                linesBetweenDnsmasq.add("address=/${it.name}/${it.IP}")
             }
+            linesBetweenDnsmasq.removeIf { line -> line.contains("address=/.${CONF.MYCLUSTER_DOMAIN}/") }
+            linesBetweenDnsmasq.add(0, "address=/.${CONF.MYCLUSTER_DOMAIN}/${vmStates[0].IP}")
             FileUtils.replaceAllWith(
-                file, linesBetween.joinToString("\n"),
+                dnsmasq, linesBetweenDnsmasq.joinToString("\n"),
+                FileUtils.START_SENTINEL, FileUtils.END_SENTINEL, keepOriginal = true, needsSudo = false
+            )
+            FileUtils.replaceAllWith(
+                etchosts, linesBetweenEtcHosts.joinToString("\n"),
                 FileUtils.START_SENTINEL, FileUtils.END_SENTINEL, keepOriginal = true, needsSudo = true,
                 additionalSudoCmds = listOf("brew services restart dnsmasq")
             )
-
-            // fresh install
+            // FINALLY, DO THE FRESH INSTALL
             CommonNodes.freshInstall(vmStates.filter { it.formerState == "fresh" })
         }
 
         log.info("ran BootStrapInfra.")
     }
 }
+

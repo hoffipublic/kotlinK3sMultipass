@@ -8,7 +8,9 @@ import com.hoffi.infra.local.multipass.vmState
 import com.hoffi.shell.Shell
 import koodies.exec.CommandLine
 import java.io.File
+import java.nio.file.Files
 import java.nio.file.Path
+import java.nio.file.attribute.PosixFilePermission
 
 class BootstrapK3s: CliktCommand(printHelpOnEmptyArgs = true, help = """
     bootstrap K8s Rancher K3s flavor on an existing VM cluster    
@@ -31,7 +33,7 @@ class BootstrapK3s: CliktCommand(printHelpOnEmptyArgs = true, help = """
 
         val k3sYamlFile = Path.of("${CONF.DIR.TMPDIR}/k3s.yaml")
         val k3sRootCaFile = Path.of("${CONF.DIR.TMPDIR}/${CONF.K3SNODENAMEPREFIX}_root.ca")
-        var k3sMasterToken = ""
+        var k3sMasterToken: String
 
 
         Shell.callShell("start K3S master node", """
@@ -58,7 +60,11 @@ class BootstrapK3s: CliktCommand(printHelpOnEmptyArgs = true, help = """
             readLine()
         } else {
             try { File("${CONF.DIR.HOME}/.kube/config").copyTo(File("${CONF.DIR.HOME}/.kube/config.orig"), overwrite = true) } catch(e: Exception) {}
-            k3sYamlFile.toFile().copyTo(File("${CONF.DIR.HOME}/.kube/config"), overwrite = true)
+            k3sYamlFile.toFile().copyTo(CONF.HOST_KUBECONFIG_FILE, overwrite = true)
+            val perms: MutableSet<PosixFilePermission> = HashSet()
+            perms.add(PosixFilePermission.OWNER_READ)
+            perms.add(PosixFilePermission.OWNER_WRITE)
+            Files.setPosixFilePermissions(CONF.HOST_KUBECONFIG_FILE.toPath(), perms);
         }
 
         Shell.callShell("get k3s root.ca", """
@@ -91,38 +97,62 @@ class BootstrapK3s: CliktCommand(printHelpOnEmptyArgs = true, help = """
         }
 
         log.info("post cluster installation stuff...")
-        CommandLine("kubectl", "taint", "node", k3sVmStates[0].name, "--overwrite", "node-role.kubernetes.io/master=effect:NoSchedule")
-            .exec()
+        Shell.callShell("chown ubuntu:ubuntu /etc/rancher/k3s/k3s.yaml", """
+            multipass exec "${k3sVmStates[0].name}" -- bash -c 'sudo chown ubuntu:ubuntu /etc/rancher/k3s/k3s.yaml'
+        """.trimIndent())
+        if (CONF.K3SNODECOUNT > 1) {
+            log.info("tainting master node ${k3sVmStates[0].name} to node-role.kubernetes.io/master=effect:NoSchedule")
+            CommandLine("kubectl", "taint", "node", k3sVmStates[0].name, "--overwrite", "node-role.kubernetes.io/master=effect:NoSchedule")
+                .exec.logging()
+        } else {
+            log.info("tainting master node ${k3sVmStates[0].name} to node-role.kubernetes.io/master=")
+            CommandLine("kubectl", "taint", "node", k3sVmStates[0].name, "--overwrite", "node-role.kubernetes.io/master=")
+                .exec.logging()
+        }
         i = 1
         while ( i < CONF.K3SNODECOUNT) {
-            while(true) {
-                val state = Shell.callShell("checking if node ${k3sVmStates[i].name} is ready", """
-                    kubectl get node ${k3sVmStates[i].name} | tail -1 | awk '{print ${'$'}2}'
-                """.trimIndent()).trim()
-                if (state == "Ready") break
-                Thread.sleep(2_000L)
-            }
-            CommandLine("kubectl", "label", "node", k3sVmStates[i].name, "--overwrite", "--overwrite node-role.kubernetes.io/node=")
-                .exec()
+            Shell.callShell("checking if node ${k3sVmStates[i].name} is ready", """
+                while [[ 'Ready' != $(kubectl get node ${k3sVmStates[i].name} 2>/dev/null | tail -1 | awk '{print ${'$'}2}') ]]; do
+                    sleep 2
+                done
+            """.trimIndent()).trim()
+            log.info("labeling slave node ${k3sVmStates[i].name} to node-role.kubernetes.io/node=")
+            CommandLine("kubectl", "label", "node", k3sVmStates[i].name, "--overwrite", "node-role.kubernetes.io/node=")
+                .exec.logging()
             i++
         }
+
+        log.info("DNSMASQ: adjust k3s coredns")
+        Shell.callShell("kubectl -n kube-system edit configmap coredns", """
+            if ! kubectl -n kube-system get configmap coredns -o yaml | grep "forward . ${CONF.IP_DNSSERVER}" >/dev/null ; then
+                kubectl -n kube-system get configmap coredns -o yaml  | sed 's/^        forward \. .*$/        forward . ${CONF.IP_DNSSERVER}/' | kubectl -n kube-system apply -f -
+            fi
+            kubectl -n kube-system scale --replicas=0 deployment coredns
+            sleep 1
+            kubectl -n kube-system scale --replicas=1 deployment coredns
+        """.trimIndent())
+
+
+//        i = 0
+//        while ( i < CONF.K3SNODECOUNT) {
+//
+//        }
 
         CommandLine("kubectl", "get", "nodes", "-o", "wide")
             .exec()
 
         // TODO kubewaitPodRunning -n "kube-system" -l app.kubernetes.io/name=traefik 'traefik-.*' 5 5 20 1 # initial:5 between:5 times:20 after:1
 
-        for (i in 1..8) {
-            try {
-                val ingressIP = Shell.callShell("get k3s traefik ingress IP", """
-                    kubectl get service -l app.kubernetes.io/instance=traefik -n kube-system -o json | jq -r '[.items[0].status.loadBalancer.ingress[].ip] | @sh'
-                """.trimIndent())
-                break
-            } catch (e: Exception) {
-                log.info("trying again after 3 sec")
-                Thread.sleep(3_000L)
-            }
-        }
+
+        Shell.callShell("retrying 10 times to get k3s traefik ingress IP", """
+            for i in {1..10}; do
+                if kubectl get service -l app.kubernetes.io/instance=traefik -n kube-system -o json 2>/dev/null | jq -r '[.items[0].status.loadBalancer.ingress[].ip] | @sh' ; then
+                    break
+                fi
+                sleep 3
+            done
+        """.trimIndent())
+
 
         log.info("ran BootStrapK3s.")
     }

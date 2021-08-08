@@ -1,4 +1,6 @@
 packages:
+  - name: open-iscsi
+    versionCmd: "iscsid --version"
   - name: net-tools
     versionCmd: "ifconfig --version"
   - name: fzf
