@@ -658,7 +658,7 @@ function valid_ip() {
 # parseCmdLineArgs
 # from https://github.com/UrsaDK/getopts_long
 ##############################################################################
-source "${SCRIPTDIR}/../lib/getopts_long/getopts_long.bash"
+source "${SCRIPTDIR}/getopts_long/getopts_long.bash"
 
 cmdLineOptsShort=() ; cmdLineOptsLong=()
 cmdLineOptsLong+=('cmd:') ; OPT_CMD="cert"

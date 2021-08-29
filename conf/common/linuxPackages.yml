@@ -3,6 +3,8 @@ packages:
     versionCmd: "iscsid --version"
   - name: net-tools
     versionCmd: "ifconfig --version"
+  - name: tree
+    versionCmd: "tree --version"
   - name: fzf
     versionCmd: "fzf --version"
   - name: silversearcher-ag

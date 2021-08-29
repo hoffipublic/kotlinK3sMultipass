@@ -2,8 +2,11 @@ package com.hoffi.infra.local.scratch
 
 import com.github.ajalt.clikt.core.CliktCommand
 import com.hoffi.common.log.LoggerDelegate
+import com.hoffi.infra.CONF
+import com.hoffi.infra.local.multipass.vmState
 import com.hoffi.shell.Shell
 import net.mamoe.yamlkt.Yaml
+import java.io.File
 
 
 class Scratch2: CliktCommand() {
@@ -13,43 +16,37 @@ class Scratch2: CliktCommand() {
     override fun run() {
         log.info("should have a greeting.")
 
-        //val yamlConf = Yaml.decodeMapFromString(File(CONF.DIR.CONFDIR, "common/linuxPackages.yml").readText())
+        val vmState = vmState("harbor1", "192.168.64.17", "fresh", "fresh")
 
-//        val applyYaml = """
-//            apiVersion: networking.k8s.io/v1
-//            kind: Ingress
-//            metadata:
-//              name: longhorn-ingress
-//              namespace: ${CONF.NAMESPACE_LONGHORN}
-//              annotations:
-//                kubernetes.io/ingress.class: traefik
-//            spec:
-//              rules:
-//              - host: longhorn.${CONF.MYCLUSTER_DOMAIN}
-//                http:
-//                  paths:
-//                  - path: /
-//                    pathType: Prefix
-//                    backend:
-//                      service:
-//                        name: longhorn-frontend
-//                        port:
-//                          number: 80
-//        """.trimIndent().trim()
-//        // kubectl -n longhorn-system port-forward services/longhorn-frontend 8080:http
-//        //kubectl -n "${CONF.NAMESPACE_LONGHORN}" apply -f echo <(printf "${applyYaml}")
-//        Shell.callShell("expose longhorn-frontend", """
-//            echo '${applyYaml}' | kubectl -n "${CONF.NAMESPACE_LONGHORN}" apply -f -
-//        """.trimIndent().trim())
-
-        Shell.callShell("retrying 10 times to get k3s traefik ingress IP", """
-            for i in {1..10}; do
-                if kubectl get service -l app.kubernetes.io/instance=traefik -n kube-system -o json 2>/dev/null | jq -r '[.items[0].status.loadBalancer.ingress[].ip] | @sh' ; then
-                    break
-                fi
-                sleep 3
-            done
-        """.trimIndent())
+        var remoteCmd = """
+                    multipass mount ~/devTools/harbor/data ${vmState.name}:/data
+                    multipass exec ${vmState.name} -- bash +e -x -c '
+                        function mycall() { echo "${'$'} ${'$'}@" ; eval "${'$'}@" ; }
+                        mycall mkdir harbor 2>/dev/null
+                        mycall cd harbor
+                        mycall mkdir certs 2>/dev/null
+                        # docker wants cert postfix to be .crt not .cert or anything else
+                        echo -e "${File("tmp/${CONF.targetEnv}/certs/harbor/certs/harbor_registry.cert").readText()}" > certs/harbor_registry.crt 
+                        echo -e "${File("tmp/${CONF.targetEnv}/certs/harbor/certs/harbor_registry.key").readText()}" > certs/harbor_registry.key 
+                        mycall cd ..
+                        mycall pwd
+                        
+                        latest=${'$'}(curl -sL https://api.github.com/repos/goharbor/harbor/releases/latest |  jq -r ".tag_name")
+                        mycall wget https://github.com/goharbor/harbor/releases/download/${'$'}latest/harbor-online-installer-${'$'}latest.tgz
+                        mycall tar xf harbor-online-installer-${'$'}latest.tgz
+                        mycall cd harbor
+                        yq eval -o=j harbor.yml.tmpl | jq "
+                            .hostname = \"registry.hoffilocal.com\" |
+                            .http.port = 8880 |
+                            .https.port = 8843 |
+                            .https.certificate = \"${'$'}PWD/certs/harbor_registry.crt\" |
+                            .https.private_key = \"${'$'}PWD/certs/harbor_registry.key\" |
+                            .data_volume = \"/data\" |
+                            .log.local.rotate_size = \"15M\"
+                        " | yq eval --prettyPrint > harbor.yml
+                    '
+                """.trimIndent()
+        Shell.callShell("harbor install on ${vmState.name}", remoteCmd)
 
 
         log.info("done.")

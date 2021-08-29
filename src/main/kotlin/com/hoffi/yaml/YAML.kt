@@ -30,14 +30,14 @@ object YAML {
     }
 
     data class LinuxPackage(val name: String, val versionCmd: String)
-    fun linuxPackages(): Map<String, List<LinuxPackage>> {
+    fun linuxPackages(): MutableMap<String, MutableList<LinuxPackage>> {
         val yamlConf = Yaml.decodeMapFromString(File(CONF.DIR.CONFDIR, "common/linuxPackages.yml").readText())
 
-        val theMap = mutableMapOf<String, List<LinuxPackage>>()
+        val theMap = mutableMapOf<String, MutableList<LinuxPackage>>()
         yamlConf.forEach { k, v ->
             @Suppress("UNCHECKED_CAST")
             val packages = v as List<Map<*, *>>
-            theMap[k.toString()] = packages.map { LinuxPackage(it["name"].toString(), it["versionCmd"].toString()) }
+            theMap[k.toString()] = packages.map { LinuxPackage(it["name"].toString(), it["versionCmd"].toString()) }.toMutableList()
         }
         return theMap
     }

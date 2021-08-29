@@ -10,6 +10,7 @@ import com.hoffi.infra.local.Local
 import com.hoffi.infra.local.k3s.BootstrapK3s
 import com.hoffi.infra.local.k3s.ConfigureK3s
 import com.hoffi.infra.local.multipass.BootstrapInfra
+import com.hoffi.infra.local.multipass.harbor.Harbor
 import com.hoffi.infra.local.scratch.Scratch
 import com.hoffi.infra.local.scratch.Scratch2
 import com.hoffi.yaml.YAML.callYttFiles
@@ -26,6 +27,7 @@ enum class TargetEnvs { local, hetzner, scratch }
 val subCommands = listOf(
     Local(),
     Hetzner(),
+    Harbor(),
     BootstrapInfra(),
     BootstrapK3s(),
     ConfigureK3s(),

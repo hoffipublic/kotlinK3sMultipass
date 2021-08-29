@@ -35,6 +35,8 @@ class YamlConf {
     val K3SNODENAMEPREFIX: String = "k3snode"
     val K3SNODES: MutableList<K3SNODE> = mutableListOf()
     val MYCLUSTER_DOMAIN: String = ""
+    val HOST_DOMAIN_CA: String = ""
+    val HOST_DOMAIN: String = ""
     val CERT_FILENAME: String = ""
     val CERT_KEY_FILENAME: String = ""
 

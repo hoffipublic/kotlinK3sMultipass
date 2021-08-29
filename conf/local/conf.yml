@@ -17,6 +17,8 @@ K3SNODES:
   - name: k3snode01
   - name: k3snode02
 MYCLUSTER_DOMAIN: iac.poi #! WARNING: .local is reserved for Multicast DNS
+HOST_DOMAIN: hoffilocal.com
+HOST_DOMAIN_CA: tmp/local/certs/rootca_rootcahoffi.ca
 #! CERT_FILENAME: /etc/letsencrypt/live/${MYCLUSTER_DOMAIN}/fullchain.pem
 #! CERT_KEY_FILENAME: /etc/letsencrypt/live/${MYCLUSTER_DOMAIN}/privkey.pem
 CERT_FILENAME: #@ "{}/.ssh/{}/fullchain.pem".format(data.values.HOME, data.values.MYCLUSTER_DOMAIN)
